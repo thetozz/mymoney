@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Transações Recorrentes{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-redo-alt me-2"></i>Transações Recorrentes</h2>
+                <div class="btn-group">
+                    <a href="{% url 'transacoes:criar_recorrente' %}" class="btn btn-success">
+                        <i class="fas fa-plus me-1"></i>Nova Recorrente
+                    </a>
+                    <form method="post" action="{% url 'transacoes:gerar_transacoes_mes' %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary" onclick="return confirm('Gerar todas as transações recorrentes para este mês?')">
+                            <i class="fas fa-calendar-plus me-1"></i>Gerar Mês Atual
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="tipo" class="form-label">Tipo</label>
+                            <select name="tipo" id="tipo" class="form-select">
+                                <option value="">Todos</option>
+                                <option value="RECEITA" {% if filtro_tipo == 'RECEITA' %}selected{% endif %}>Receita</option>
+                                <option value="DESPESA" {% if filtro_tipo == 'DESPESA' %}selected{% endif %}>Despesa</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="ativa" class="form-label">Status</label>
+                            <select name="ativa" id="ativa" class="form-select">
+                                <option value="">Todas</option>
+                                <option value="true" {% if filtro_ativa == 'true' %}selected{% endif %}>Ativas</option>
+                                <option value="false" {% if filtro_ativa == 'false' %}selected{% endif %}>Inativas</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="busca" class="form-label">Buscar</label>
+                            <input type="text" name="busca" id="busca" class="form-control" 
+                                   value="{{ busca }}" placeholder="Descrição ou categoria...">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-outline-primary me-2">
+                                <i class="fas fa-search"></i>
+                            </button>
+                            <a href="{% url 'transacoes:recorrentes' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i>
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Lista de Transações Recorrentes -->
+            <div class="card">
+                <div class="card-body">
+                    {% if recorrentes %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Descrição</th>
+                                        <th>Tipo</th>
+                                        <th>Valor</th>
+                                        <th>Categoria</th>
+                                        <th>Tipo de Recorrência</th>
+                                        <th>Próximo Vencimento</th>
+                                        <th>Status</th>
+                                        <th width="150">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for recorrente in recorrentes %}
+                                        <tr>
+                                            <td>
+                                                <div class="fw-bold">{{ recorrente.descricao }}</div>
+                                                {% if recorrente.conta_bancaria %}
+                                                    <small class="text-muted">{{ recorrente.conta_bancaria.nome }}</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if recorrente.tipo == 'RECEITA' %}
+                                                    <span class="badge bg-success">
+                                                        <i class="fas fa-arrow-up me-1"></i>Receita
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-danger">
+                                                        <i class="fas fa-arrow-down me-1"></i>Despesa
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="fw-bold {% if recorrente.tipo == 'RECEITA' %}text-success{% else %}text-danger{% endif %}">
+                                                R$ {{ recorrente.valor|floatformat:2 }}
+                                            </td>
+                                            <td>
+                                                {% if recorrente.categoria %}
+                                                    <span class="badge" style="background-color: {{ recorrente.categoria.cor }}">
+                                                        {{ recorrente.categoria.nome }}
+                                                    </span>
+                                                {% else %}
+                                                    <span class="text-muted">Sem categoria</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">
+                                                    {% if recorrente.tipo_recorrencia == 'MENSAL' %}
+                                                        Todo dia {{ recorrente.dia_vencimento }} (Mensal)
+                                                    {% elif recorrente.tipo_recorrencia == 'BIMESTRAL' %}
+                                                        Todo dia {{ recorrente.dia_vencimento }} (Bimestral)
+                                                    {% elif recorrente.tipo_recorrencia == 'TRIMESTRAL' %}
+                                                        Todo dia {{ recorrente.dia_vencimento }} (Trimestral)
+                                                    {% elif recorrente.tipo_recorrencia == 'SEMESTRAL' %}
+                                                        Todo dia {{ recorrente.dia_vencimento }} (Semestral)
+                                                    {% elif recorrente.tipo_recorrencia == 'ANUAL' %}
+                                                        Todo ano ({{ recorrente.data_inicio|date:"d/m" }})
+                                                    {% endif %}
+                                                </small>
+                                            </td>
+                                            <td>
+                                                {% if recorrente.ativa %}
+                                                    <span class="text-muted">{{ recorrente.proxima_data_vencimento|date:"d/m/Y" }}</span>
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if recorrente.ativa %}
+                                                    <span class="badge bg-success">Ativa</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Inativa</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="{% url 'transacoes:editar_recorrente' recorrente.pk %}" 
+                                                       class="btn btn-outline-primary" title="Editar">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    <a href="{% url 'transacoes:excluir_recorrente' recorrente.pk %}" 
+                                                       class="btn btn-outline-danger" title="Excluir">
+                                                        <i class="fas fa-trash"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Paginação -->
+                        {% if recorrentes.has_other_pages %}
+                            <nav aria-label="Paginação">
+                                <ul class="pagination justify-content-center mt-4">
+                                    {% if recorrentes.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ recorrentes.previous_page_number }}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_ativa %}&ativa={{ filtro_ativa }}{% endif %}{% if busca %}&busca={{ busca }}{% endif %}">
+                                                <i class="fas fa-chevron-left"></i>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+
+                                    {% for num in recorrentes.paginator.page_range %}
+                                        {% if num == recorrentes.number %}
+                                            <li class="page-item active">
+                                                <span class="page-link">{{ num }}</span>
+                                            </li>
+                                        {% else %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ num }}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_ativa %}&ativa={{ filtro_ativa }}{% endif %}{% if busca %}&busca={{ busca }}{% endif %}">{{ num }}</a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    {% if recorrentes.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ recorrentes.next_page_number }}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_ativa %}&ativa={{ filtro_ativa }}{% endif %}{% if busca %}&busca={{ busca }}{% endif %}">
+                                                <i class="fas fa-chevron-right"></i>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-redo-alt fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">Nenhuma transação recorrente encontrada</h5>
+                            <p class="text-muted">
+                                {% if busca or filtro_tipo or filtro_ativa %}
+                                    Tente alterar os filtros de busca.
+                                {% else %}
+                                    Crie sua primeira transação recorrente para automatizar receitas e despesas fixas.
+                                {% endif %}
+                            </p>
+                            <a href="{% url 'transacoes:criar_recorrente' %}" class="btn btn-success">
+                                <i class="fas fa-plus me-1"></i>Nova Transação Recorrente
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

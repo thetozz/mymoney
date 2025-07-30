@@ -183,7 +183,7 @@ def lista_transacoes_recorrentes(request):
     """Lista todas as transações recorrentes do usuário"""
     recorrentes = TransacaoRecorrente.objects.filter(
         usuario=request.user
-    ).order_by('-data_criacao')
+    ).order_by('-data_fim')
 
     # Filtros
     tipo = request.GET.get('tipo')
@@ -287,20 +287,22 @@ def excluir_transacao_recorrente(request, pk):
 def gerar_transacoes_mes(request):
     """Gera todas as transações recorrentes para o mês atual"""
     if request.method == 'POST':
-        from datetime import datetime
         from django.utils import timezone
 
-        mes_atual = timezone.now().date().replace(day=1)
+        now = timezone.now()
+        mes_atual = now.month
+        ano_atual = now.year
+
         recorrentes = TransacaoRecorrente.objects.filter(
             usuario=request.user, ativa=True
         )
 
         total_geradas = 0
         for recorrente in recorrentes:
-            if recorrente.deve_gerar_para_mes(mes_atual):
-                transacao = recorrente.gerar_transacao_mes(mes_atual)
-                if transacao:
-                    total_geradas += 1
+            transacao = recorrente.gerar_transacao_mes(mes_atual, ano_atual)
+            if transacao:
+                transacao.save()
+                total_geradas += 1
 
         if total_geradas > 0:
             messages.success(

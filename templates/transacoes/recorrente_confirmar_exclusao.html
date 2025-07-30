@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block title %}Confirmar Exclusão{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Exclusão
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-warning me-1"></i>Atenção!</h6>
+                        <p class="mb-0">
+                            Você está prestes a excluir a transação recorrente:
+                        </p>
+                    </div>
+
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title">{{ recorrente.descricao }}</h6>
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <p class="card-text">
+                                        <strong>Tipo:</strong> 
+                                        {% if recorrente.tipo == 'RECEITA' %}
+                                            <span class="badge bg-success">Receita</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Despesa</span>
+                                        {% endif %}
+                                    </p>
+                                    <p class="card-text">
+                                        <strong>Valor:</strong> 
+                                        <span class="fw-bold {% if recorrente.tipo == 'RECEITA' %}text-success{% else %}text-danger{% endif %}">
+                                            R$ {{ recorrente.valor|floatformat:2 }}
+                                        </span>
+                                    </p>
+                                </div>
+                                <div class="col-sm-6">
+                                    {% if recorrente.categoria %}
+                                        <p class="card-text">
+                                            <strong>Categoria:</strong> 
+                                            <span class="badge" style="background-color: {{ recorrente.categoria.cor }}">
+                                                {{ recorrente.categoria.nome }}
+                                            </span>
+                                        </p>
+                                    {% endif %}
+                                    <p class="card-text">
+                                        <strong>Recorrência:</strong> 
+                                        {% if recorrente.tipo_recorrencia == 'MENSAL' %}
+                                            Todo dia {{ recorrente.dia_vencimento }} (Mensal)
+                                        {% elif recorrente.tipo_recorrencia == 'BIMESTRAL' %}
+                                            Todo dia {{ recorrente.dia_vencimento }} (Bimestral)
+                                        {% elif recorrente.tipo_recorrencia == 'TRIMESTRAL' %}
+                                            Todo dia {{ recorrente.dia_vencimento }} (Trimestral)
+                                        {% elif recorrente.tipo_recorrencia == 'SEMESTRAL' %}
+                                            Todo dia {{ recorrente.dia_vencimento }} (Semestral)
+                                        {% elif recorrente.tipo_recorrencia == 'ANUAL' %}
+                                            Todo ano ({{ recorrente.data_inicio|date:"d/m" }})
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-1"></i>
+                        <strong>Importante:</strong> Esta ação não pode ser desfeita. 
+                        As transações já geradas por esta recorrência permanecerão no sistema.
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'transacoes:recorrentes' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-1"></i>Confirmar Exclusão
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

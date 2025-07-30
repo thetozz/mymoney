@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block title %}Categorias - Sistema de Finanças{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-tags"></i> Categorias</h2>
+    <a href="{% url 'transacoes:criar_categoria' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Nova Categoria
+    </a>
+</div>
+
+<!-- Lista de categorias -->
+<div class="row">
+    <!-- Categorias de Receita -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5><i class="bi bi-arrow-up-circle"></i> Receitas</h5>
+            </div>
+            <div class="card-body">
+                {% for categoria in categorias %}
+                    {% if categoria.tipo == 'RECEITA' %}
+                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                            <div class="d-flex align-items-center">
+                                <span class="badge me-2" style="background-color: {{ categoria.cor }}; width: 20px; height: 20px;"></span>
+                                <span>{{ categoria.nome }}</span>
+                                {% if not categoria.ativa %}
+                                    <span class="badge bg-secondary ms-2">Inativa</span>
+                                {% endif %}
+                            </div>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary btn-sm" onclick="editarCategoria({{ categoria.id }})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm" onclick="excluirCategoria({{ categoria.id }})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% empty %}
+                    <p class="text-muted text-center">Nenhuma categoria de receita encontrada</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Categorias de Despesa -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5><i class="bi bi-arrow-down-circle"></i> Despesas</h5>
+            </div>
+            <div class="card-body">
+                {% for categoria in categorias %}
+                    {% if categoria.tipo == 'DESPESA' %}
+                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                            <div class="d-flex align-items-center">
+                                <span class="badge me-2" style="background-color: {{ categoria.cor }}; width: 20px; height: 20px;"></span>
+                                <span>{{ categoria.nome }}</span>
+                                {% if not categoria.ativa %}
+                                    <span class="badge bg-secondary ms-2">Inativa</span>
+                                {% endif %}
+                            </div>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary btn-sm" onclick="editarCategoria({{ categoria.id }})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm" onclick="excluirCategoria({{ categoria.id }})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% empty %}
+                    <p class="text-muted text-center">Nenhuma categoria de despesa encontrada</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if not categorias %}
+<div class="text-center mt-5">
+    <i class="bi bi-tags display-1 text-muted"></i>
+    <h4 class="text-muted mt-3">Nenhuma categoria encontrada</h4>
+    <p class="text-muted">Comece criando suas categorias para organizar melhor suas finanças.</p>
+    <a href="{% url 'transacoes:criar_categoria' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Criar Primeira Categoria
+    </a>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function editarCategoria(id) {
+    // Por enquanto apenas redireciona para criar nova
+    // Futuramente implementar edição inline
+    window.location.href = "{% url 'transacoes:criar_categoria' %}";
+}
+
+function excluirCategoria(id) {
+    if (confirm('Tem certeza que deseja excluir esta categoria?')) {
+        // Implementar exclusão via AJAX futuramente
+        alert('Funcionalidade de exclusão será implementada em breve');
+    }
+}
+</script>
+{% endblock %}

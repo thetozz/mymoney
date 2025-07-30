@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Sistema de Finanças{% endblock %}
+
+{% block content %}
+<!-- Filtros de período -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                {% if not mostrando_mes_atual %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Aviso:</strong> Não há transações no mês atual. 
+                        Mostrando dados do último período com movimentações.
+                    </div>
+                {% endif %}
+                
+                <form method="get" class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label for="mes" class="form-label">Mês</label>
+                        <select name="mes" id="mes" class="form-select">
+                            {% for value, nome in meses %}
+                                <option value="{{ value }}" {% if value == mes_atual %}selected{% endif %}>
+                                    {{ nome }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="ano" class="form-label">Ano</label>
+                        <select name="ano" id="ano" class="form-select">
+                            {% for ano in anos %}
+                                <option value="{{ ano }}" {% if ano == ano_atual %}selected{% endif %}>
+                                    {{ ano }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-funnel"></i> Filtrar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cards de resumo -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Receitas</h5>
+                        <h3>R$ {{ receitas_total|floatformat:2 }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-arrow-up-circle fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card text-white bg-danger">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Despesas</h5>
+                        <h3>R$ {{ despesas_total|floatformat:2 }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-arrow-down-circle fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card text-white {% if saldo_mes >= 0 %}bg-primary{% else %}bg-warning{% endif %}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Saldo</h5>
+                        <h3>R$ {{ saldo_mes|floatformat:2 }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-{% if saldo_mes >= 0 %}check-circle{% else %}exclamation-triangle{% endif %} fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficos -->
+<div class="row mb-4">
+    <!-- Gráfico de receitas -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-pie-chart"></i> Receitas por Categoria</h5>
+            </div>
+            <div class="card-body">
+                {% if receitas_categoria %}
+                    <canvas id="receitasChart" width="400" height="200"></canvas>
+                {% else %}
+                    <p class="text-muted text-center">Nenhuma receita encontrada no período</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Gráfico de despesas -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-pie-chart"></i> Despesas por Categoria</h5>
+            </div>
+            <div class="card-body">
+                {% if despesas_categoria %}
+                    <canvas id="despesasChart" width="400" height="200"></canvas>
+                {% else %}
+                    <p class="text-muted text-center">Nenhuma despesa encontrada no período</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Transações recentes -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="bi bi-clock-history"></i> Transações Recentes</h5>
+                <a href="{% url 'transacoes:lista' %}" class="btn btn-sm btn-outline-primary">
+                    Ver todas
+                </a>
+            </div>
+            <div class="card-body">
+                {% if transacoes_recentes %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Descrição</th>
+                                    <th>Categoria</th>
+                                    <th>Tipo</th>
+                                    <th class="text-end">Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transacao in transacoes_recentes %}
+                                <tr>
+                                    <td>{{ transacao.data|date:"d/m/Y" }}</td>
+                                    <td>{{ transacao.descricao }}</td>
+                                    <td>
+                                        <span class="badge" style="background-color: {{ transacao.categoria.cor }}">
+                                            {{ transacao.categoria.nome }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if transacao.tipo == 'RECEITA' %}
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-arrow-up"></i> Receita
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger">
+                                                <i class="bi bi-arrow-down"></i> Despesa
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <strong class="{% if transacao.tipo == 'RECEITA' %}text-success{% else %}text-danger{% endif %}">
+                                            R$ {{ transacao.valor|floatformat:2 }}
+                                        </strong>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">Nenhuma transação encontrada</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Gráfico de receitas
+{% if receitas_categoria %}
+const receitasData = {{ receitas_chart_data|safe }};
+const receitasCtx = document.getElementById('receitasChart').getContext('2d');
+new Chart(receitasCtx, {
+    type: 'doughnut',
+    data: {
+        labels: receitasData.labels,
+        datasets: [{
+            data: receitasData.data,
+            backgroundColor: receitasData.colors,
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+{% endif %}
+
+// Gráfico de despesas
+{% if despesas_categoria %}
+const despesasData = {{ despesas_chart_data|safe }};
+const despesasCtx = document.getElementById('despesasChart').getContext('2d');
+new Chart(despesasCtx, {
+    type: 'doughnut',
+    data: {
+        labels: despesasData.labels,
+        datasets: [{
+            data: despesasData.data,
+            backgroundColor: despesasData.colors,
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+{% endif %}
+</script>
+{% endblock %}

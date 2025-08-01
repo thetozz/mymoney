@@ -5,13 +5,16 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
 from .models import (
     Transacao, Categoria, ContaBancaria, ImportacaoOFX, TransacaoRecorrente
 )
 from .forms import (
     TransacaoForm, CategoriaForm, ContaBancariaForm, TransacaoRecorrenteForm
 )
-from .utils import processar_arquivo_ofx
+from .utils import (
+    processar_arquivo_ofx, preview_arquivo_ofx, salvar_transacoes_ofx
+)
 import json
 
 
@@ -141,7 +144,7 @@ def criar_categoria(request):
 
 @login_required
 def importar_ofx(request):
-    """Importa arquivo OFX"""
+    """Importa arquivo OFX - Etapa 1: Upload e preview"""
     if request.method == 'POST' and request.FILES.get('arquivo_ofx'):
         arquivo = request.FILES['arquivo_ofx']
         conta_id = request.POST.get('conta_bancaria')
@@ -152,17 +155,19 @@ def importar_ofx(request):
                 conta = get_object_or_404(
                     ContaBancaria, pk=conta_id, usuario=request.user)
 
-            resultado = processar_arquivo_ofx(arquivo, request.user, conta)
+            # Processa o arquivo sem salvar as transações
+            resultado = preview_arquivo_ofx(arquivo, request.user, conta)
 
             if resultado['sucesso']:
-                messages.success(
-                    request,
-                    f'Importação concluída! {resultado["importadas"]} transações '
-                    f'importadas, {resultado["duplicadas"]} duplicatas ignoradas.'
-                )
+                # Armazena os dados na sessão para confirmação
+                request.session['preview_transacoes'] = resultado['transacoes']
+                request.session['preview_conta_id'] = conta_id
+                request.session['preview_arquivo_nome'] = arquivo.name
+
+                return redirect('transacoes:confirmar_importacao_ofx')
             else:
                 messages.error(
-                    request, f'Erro na importação: {resultado["erro"]}')
+                    request, f'Erro no processamento: {resultado["erro"]}')
 
         except Exception as e:
             messages.error(request, f'Erro ao processar arquivo: {str(e)}')
@@ -175,6 +180,66 @@ def importar_ofx(request):
     return render(request, 'transacoes/importar_ofx.html', {
         'contas': contas,
         'importacoes': importacoes
+    })
+
+
+@login_required
+def confirmar_importacao_ofx(request):
+    """Confirma importação OFX - Etapa 2: Preview e confirmação"""
+    transacoes_preview = request.session.get('preview_transacoes')
+    conta_id = request.session.get('preview_conta_id')
+    arquivo_nome = request.session.get('preview_arquivo_nome')
+
+    if not transacoes_preview:
+        messages.error(
+            request,
+            'Dados de importação não encontrados. Tente novamente.'
+        )
+        return redirect('transacoes:importar_ofx')
+
+    if request.method == 'POST':
+        if request.POST.get('confirmar') == 'sim':
+            # Salva as transações confirmadas
+            resultado = salvar_transacoes_ofx(
+                transacoes_preview,
+                request.user,
+                conta_id,
+                arquivo_nome
+            )
+
+            if resultado['sucesso']:
+                messages.success(
+                    request,
+                    f'Importação concluída! {resultado["importadas"]} '
+                    f'transações importadas, {resultado["duplicadas"]} '
+                    f'duplicatas ignoradas.'
+                )
+            else:
+                messages.error(
+                    request, f'Erro na importação: {resultado["erro"]}')
+
+        # Limpa dados da sessão
+        request.session.pop('preview_transacoes', None)
+        request.session.pop('preview_conta_id', None)
+        request.session.pop('preview_arquivo_nome', None)
+
+        return redirect('transacoes:importar_ofx')
+
+    # Busca categorias para possível edição
+    categorias = Categoria.objects.filter(usuario=request.user, ativa=True)
+    conta = None
+    if conta_id:
+        conta = get_object_or_404(
+            ContaBancaria, pk=conta_id, usuario=request.user
+        )
+
+    return render(request, 'transacoes/confirmar_importacao_ofx.html', {
+        'transacoes': transacoes_preview,
+        'categorias': categorias,
+        'conta': conta,
+        'arquivo_nome': arquivo_nome,
+        'total_transacoes': len(transacoes_preview),
+        'chatgpt_enabled': getattr(settings, 'CHATGPT_ENABLED', False)
     })
 
 

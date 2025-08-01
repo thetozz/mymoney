@@ -36,12 +36,20 @@
                     </div>
                     
                     <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-upload"></i> Importar Arquivo
+                        <i class="bi bi-upload"></i> Processar e Visualizar
                     </button>
                 </form>
                 
-                <!-- Informações sobre OFX -->
                 <div class="mt-4">
+                    <h6>Processo de Importação:</h6>
+                    <ol class="small text-muted">
+                        <li>Selecione o arquivo .ofx do seu banco</li>
+                        <li>Escolha uma conta bancária (opcional)</li>
+                        <li>Clique em "Processar e Visualizar"</li>
+                        <li>Revise as transações e categorias sugeridas pela IA</li>
+                        <li>Confirme a importação</li>
+                    </ol>
+                    
                     <h6>Como obter arquivos OFX:</h6>
                     <ul class="small text-muted">
                         <li>Acesse o site do seu banco</li>
@@ -108,8 +116,9 @@
             </div>
             <div class="card-body">
                 <ul class="small mb-0">
+                    <li>As transações são processadas por IA para melhor categorização</li>
+                    <li>Você pode revisar e alterar as categorias antes de importar</li>
                     <li>O sistema detecta automaticamente duplicatas</li>
-                    <li>Categorias são associadas automaticamente quando possível</li>
                     <li>Transações importadas ficam marcadas com ícone especial</li>
                     <li>Você pode importar o mesmo arquivo várias vezes</li>
                 </ul>

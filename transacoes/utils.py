@@ -1,7 +1,180 @@
 import ofxparse
 from decimal import Decimal
 from django.utils import timezone
-from .models import Transacao, ImportacaoOFX, Categoria
+from django.shortcuts import get_object_or_404
+from .models import Transacao, ImportacaoOFX, Categoria, ContaBancaria
+from .chatgpt_service import categorizar_transacoes_chatgpt
+
+
+def preview_arquivo_ofx(arquivo, usuario, conta_bancaria=None):
+    """
+    Processa um arquivo OFX e retorna preview das transações para confirmação
+
+    Args:
+        arquivo: Arquivo OFX enviado
+        usuario: Usuário que está importando
+        conta_bancaria: Conta bancária associada (opcional)
+
+    Returns:
+        dict: Resultado com lista de transações para preview
+    """
+    try:
+        # Parse do arquivo OFX
+        ofx = ofxparse.OfxParser.parse(arquivo)
+
+        transacoes_preview = []
+        transacoes_duplicadas = 0
+        total_transacoes = 0
+
+        # Processa cada conta no arquivo OFX
+        for account in ofx.accounts:
+            for transaction in account.statement.transactions:
+                total_transacoes += 1
+
+                # Cria identificador único baseado nos dados da transação
+                identificador = f"{account.account_id}_{transaction.id}_{transaction.date}_{transaction.amount}"
+
+                # Verifica se já existe uma transação com esse identificador
+                is_duplicada = Transacao.objects.filter(
+                    usuario=usuario,
+                    identificador_ofx=identificador
+                ).exists()
+
+                if is_duplicada:
+                    transacoes_duplicadas += 1
+                    continue
+
+                # Determina tipo da transação
+                valor = abs(Decimal(str(transaction.amount)))
+                tipo = 'RECEITA' if transaction.amount > 0 else 'DESPESA'
+                descricao = transaction.memo or transaction.payee or 'Transação OFX'
+
+                # Tenta encontrar categoria baseada na descrição
+                categoria = obter_categoria_automatica(
+                    descricao, tipo, usuario)
+
+                transacao_data = {
+                    'descricao': descricao,
+                    'valor': float(valor),
+                    'tipo': tipo,
+                    'data': transaction.date.date().isoformat(),
+                    'categoria_id': categoria.id,
+                    'categoria_nome': categoria.nome,
+                    'categoria_cor': categoria.cor,
+                    'identificador_ofx': identificador,
+                    'conta_bancaria_id': conta_bancaria.id if conta_bancaria else None
+                }
+
+                transacoes_preview.append(transacao_data)
+
+        # Processa com ChatGPT para melhorar categorização
+        if transacoes_preview:
+            transacoes_preview = categorizar_transacoes_chatgpt(
+                transacoes_preview, usuario
+            )
+
+        return {
+            'sucesso': True,
+            'transacoes': transacoes_preview,
+            'duplicadas': transacoes_duplicadas,
+            'total': total_transacoes
+        }
+
+    except Exception as e:
+        return {
+            'sucesso': False,
+            'erro': str(e),
+            'transacoes': []
+        }
+
+
+def salvar_transacoes_ofx(transacoes_data, usuario, conta_id, arquivo_nome):
+    """
+    Salva as transações confirmadas pelo usuário
+
+    Args:
+        transacoes_data: Lista com dados das transações
+        usuario: Usuário que está importando
+        conta_id: ID da conta bancária
+        arquivo_nome: Nome do arquivo original
+
+    Returns:
+        dict: Resultado da importação
+    """
+    try:
+        # Cria registro de importação
+        importacao = ImportacaoOFX.objects.create(
+            arquivo_nome=arquivo_nome,
+            usuario=usuario,
+            total_transacoes=len(transacoes_data),
+            transacoes_importadas=0,
+            transacoes_duplicadas=0
+        )
+
+        conta_bancaria = None
+        if conta_id:
+            conta_bancaria = get_object_or_404(
+                ContaBancaria, pk=conta_id, usuario=usuario
+            )
+
+        transacoes_importadas = 0
+        transacoes_duplicadas = 0
+
+        for transacao_data in transacoes_data:
+            # Verifica novamente se não é duplicata
+            if Transacao.objects.filter(
+                usuario=usuario,
+                identificador_ofx=transacao_data['identificador_ofx']
+            ).exists():
+                transacoes_duplicadas += 1
+                continue
+
+            # Busca a categoria
+            try:
+                categoria = Categoria.objects.get(
+                    id=transacao_data['categoria_id'],
+                    usuario=usuario
+                )
+            except Categoria.DoesNotExist:
+                # Categoria padrão caso não encontre
+                categoria = obter_categoria_automatica(
+                    transacao_data['descricao'],
+                    transacao_data['tipo'],
+                    usuario
+                )
+
+            # Cria a transação
+            from datetime import datetime
+            Transacao.objects.create(
+                descricao=transacao_data['descricao'],
+                valor=Decimal(str(transacao_data['valor'])),
+                tipo=transacao_data['tipo'],
+                data=datetime.fromisoformat(transacao_data['data']).date(),
+                categoria=categoria,
+                conta_bancaria=conta_bancaria,
+                usuario=usuario,
+                identificador_ofx=transacao_data['identificador_ofx'],
+                importada_ofx=True
+            )
+
+            transacoes_importadas += 1
+
+        # Atualiza registro de importação
+        importacao.transacoes_importadas = transacoes_importadas
+        importacao.transacoes_duplicadas = transacoes_duplicadas
+        importacao.save()
+
+        return {
+            'sucesso': True,
+            'importadas': transacoes_importadas,
+            'duplicadas': transacoes_duplicadas
+        }
+
+    except Exception as e:
+        return {
+            'sucesso': False,
+            'erro': str(e)
+        }
 
 
 def processar_arquivo_ofx(arquivo, usuario, conta_bancaria=None):

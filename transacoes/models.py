@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from datetime import date
 
 
 class Categoria(models.Model):
@@ -59,7 +60,7 @@ class Transacao(models.Model):
     descricao = models.CharField(max_length=200)
     valor = models.DecimalField(max_digits=12, decimal_places=2)
     tipo = models.CharField(max_length=7, choices=TIPOS_TRANSACAO)
-    data = models.DateField(default=timezone.now)
+    data = models.DateField(default=date.today)
     categoria = models.ForeignKey(Categoria, on_delete=models.CASCADE)
     conta_bancaria = models.ForeignKey(
         ContaBancaria, on_delete=models.CASCADE, null=True, blank=True)

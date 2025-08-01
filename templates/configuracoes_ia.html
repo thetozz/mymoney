@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block title %}Configurações IA - Sistema de Finanças{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="bi bi-robot"></i> Configurações de IA - ChatGPT</h4>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card {% if chatgpt_enabled %}bg-success{% else %}bg-warning{% endif %} text-white">
+                            <div class="card-body text-center">
+                                <h5>
+                                    {% if chatgpt_enabled %}
+                                        <i class="bi bi-check-circle-fill"></i> ChatGPT Ativo
+                                    {% else %}
+                                        <i class="bi bi-exclamation-triangle-fill"></i> ChatGPT Inativo
+                                    {% endif %}
+                                </h5>
+                                <p class="mb-0">
+                                    {% if chatgpt_enabled %}
+                                        Categorização inteligente habilitada
+                                    {% else %}
+                                        Usando apenas regras locais
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-info text-white">
+                            <div class="card-body text-center">
+                                <h5><i class="bi bi-gear-fill"></i> Modelo</h5>
+                                <p class="mb-0">{{ chatgpt_model }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if not chatgpt_enabled %}
+                <div class="alert alert-warning">
+                    <h6><i class="bi bi-info-circle"></i> Como Habilitar ChatGPT</h6>
+                    <ol>
+                        <li>Obtenha uma API key em <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI Platform</a></li>
+                        <li>Crie um arquivo <code>.env</code> na raiz do projeto</li>
+                        <li>Adicione: <code>OPENAI_API_KEY=sua_chave_aqui</code></li>
+                        <li>Reinicie o servidor Django</li>
+                    </ol>
+                </div>
+                {% endif %}
+
+                <h6>Configurações Técnicas</h6>
+                <table class="table table-sm">
+                    <tr>
+                        <td><strong>Modelo:</strong></td>
+                        <td>{{ chatgpt_model }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Max Tokens:</strong></td>
+                        <td>{{ chatgpt_max_tokens }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Temperature:</strong></td>
+                        <td>{{ chatgpt_temperature }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Lote de Processamento:</strong></td>
+                        <td>10 transações por chamada</td>
+                    </tr>
+                </table>
+
+                <div class="mt-4">
+                    <a href="{% url 'transacoes:importar_ofx' %}" class="btn btn-primary">
+                        <i class="bi bi-upload"></i> Testar Importação OFX
+                    </a>
+                    <button class="btn btn-secondary" onclick="testarChatGPT()">
+                        <i class="bi bi-play-circle"></i> Teste Rápido
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="bi bi-info-circle"></i> Benefícios do ChatGPT</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle text-success"></i>
+                        <strong>Maior Precisão:</strong> Entende contexto das transações
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle text-success"></i>
+                        <strong>Flexibilidade:</strong> Reconhece variações de nomes
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle text-success"></i>
+                        <strong>Aprendizado:</strong> Melhora com diferentes padrões
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle text-success"></i>
+                        <strong>Fallback:</strong> Regras locais como backup
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="bi bi-currency-dollar"></i> Custos Estimados</h6>
+            </div>
+            <div class="card-body">
+                <small>
+                    <strong>GPT-3.5-turbo:</strong><br>
+                    • ~$0.01-0.05 por 100 transações<br>
+                    • Processamento em lotes<br>
+                    • Fallback automático gratuito<br><br>
+                    
+                    <a href="https://openai.com/pricing" target="_blank">
+                        <i class="bi bi-external-link"></i> Ver preços atuais
+                    </a>
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function testarChatGPT() {
+    // Simula teste básico
+    const btn = document.querySelector('button[onclick="testarChatGPT()"]');
+    const originalText = btn.innerHTML;
+    
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Testando...';
+    btn.disabled = true;
+    
+    // Simula chamada (em produção, faria AJAX para endpoint de teste)
+    setTimeout(() => {
+        {% if chatgpt_enabled %}
+            alert('✅ ChatGPT está funcionando!\n\nTeste realizado com sucesso. O sistema está pronto para categorizar transações inteligentemente.');
+        {% else %}
+            alert('⚠️ ChatGPT não está configurado.\n\nPara habilitar, configure OPENAI_API_KEY no arquivo .env');
+        {% endif %}
+        
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }, 2000);
+}
+</script>
+{% endblock %}

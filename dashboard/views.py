@@ -15,41 +15,44 @@ def calcular_transacoes_previstas(usuario, mes, ano):
         usuario=usuario,
         ativa=True
     )
-    
+
     transacoes_previstas = []
-    
+
     for recorrente in recorrentes:
         # Verifica se deve gerar para este mês
         data_mes = datetime(ano, mes, 1).date()
-        
+
         # Verifica se está dentro do período de vigência
         if data_mes < recorrente.data_inicio:
             continue
-            
+
         if recorrente.data_fim and data_mes > recorrente.data_fim:
             continue
-        
+
         # Calcula se deve gerar baseado na recorrência
         deve_gerar = False
-        
+
         if recorrente.tipo_recorrencia == 'MENSAL':
             deve_gerar = True
         elif recorrente.tipo_recorrencia == 'BIMESTRAL':
             # A cada 2 meses a partir da data de início
-            diff_meses = (ano - recorrente.data_inicio.year) * 12 + (mes - recorrente.data_inicio.month)
+            diff_meses = (ano - recorrente.data_inicio.year) * \
+                12 + (mes - recorrente.data_inicio.month)
             deve_gerar = diff_meses % 2 == 0
         elif recorrente.tipo_recorrencia == 'TRIMESTRAL':
             # A cada 3 meses
-            diff_meses = (ano - recorrente.data_inicio.year) * 12 + (mes - recorrente.data_inicio.month)
+            diff_meses = (ano - recorrente.data_inicio.year) * \
+                12 + (mes - recorrente.data_inicio.month)
             deve_gerar = diff_meses % 3 == 0
         elif recorrente.tipo_recorrencia == 'SEMESTRAL':
             # A cada 6 meses
-            diff_meses = (ano - recorrente.data_inicio.year) * 12 + (mes - recorrente.data_inicio.month)
+            diff_meses = (ano - recorrente.data_inicio.year) * \
+                12 + (mes - recorrente.data_inicio.month)
             deve_gerar = diff_meses % 6 == 0
         elif recorrente.tipo_recorrencia == 'ANUAL':
             # Todo ano no mesmo mês da data de início
             deve_gerar = mes == recorrente.data_inicio.month
-        
+
         if deve_gerar:
             # Verifica se já existe transação real para este período
             identificador = f"recorrente_{recorrente.id}_{mes}_{ano}"
@@ -57,13 +60,13 @@ def calcular_transacoes_previstas(usuario, mes, ano):
                 usuario=usuario,
                 identificador_ofx=identificador
             ).exists()
-            
+
             if not transacao_existe:
                 # Calcula a data prevista
                 ultimo_dia_mes = calendar.monthrange(ano, mes)[1]
                 dia_ajustado = min(recorrente.dia_vencimento, ultimo_dia_mes)
                 data_prevista = datetime(ano, mes, dia_ajustado).date()
-                
+
                 transacoes_previstas.append({
                     'descricao': f"{recorrente.descricao} (Prevista)",
                     'valor': recorrente.valor,
@@ -74,7 +77,7 @@ def calcular_transacoes_previstas(usuario, mes, ano):
                     'recorrente_id': recorrente.id,
                     'eh_prevista': True
                 })
-    
+
     return transacoes_previstas
 
 
@@ -124,15 +127,19 @@ def home_view(request):
     transacoes_previstas = calcular_transacoes_previstas(
         request.user, mes, ano
     )
-    
+
     # Separa receitas e despesas previstas
-    receitas_previstas = [t for t in transacoes_previstas if t['tipo'] == 'RECEITA']
-    despesas_previstas = [t for t in transacoes_previstas if t['tipo'] == 'DESPESA']
-    
+    receitas_previstas = [
+        t for t in transacoes_previstas if t['tipo'] == 'RECEITA']
+    despesas_previstas = [
+        t for t in transacoes_previstas if t['tipo'] == 'DESPESA']
+
     # Totais das transações previstas
-    receitas_previstas_total = sum(float(t['valor']) for t in receitas_previstas)
-    despesas_previstas_total = sum(float(t['valor']) for t in despesas_previstas)
-    
+    receitas_previstas_total = sum(
+        float(t['valor']) for t in receitas_previstas)
+    despesas_previstas_total = sum(
+        float(t['valor']) for t in despesas_previstas)
+
     # Totais projetados (reais + previstas)
     receitas_projetadas = receitas_total + receitas_previstas_total
     despesas_projetadas = despesas_total + despesas_previstas_total
@@ -230,27 +237,27 @@ def consolidar_transacao_prevista(request, recorrente_id, mes, ano):
         from django.shortcuts import get_object_or_404
         from django.contrib import messages
         from django.shortcuts import redirect
-        
+
         # Busca a transação recorrente
         recorrente = get_object_or_404(
-            TransacaoRecorrente, 
-            id=recorrente_id, 
+            TransacaoRecorrente,
+            id=recorrente_id,
             usuario=request.user
         )
-        
+
         # Gera a transação para o mês especificado
         transacao = recorrente.gerar_transacao_mes(mes, ano)
-        
+
         if transacao:
             transacao.save()
             messages.success(
-                request, 
+                request,
                 f'Transação "{recorrente.descricao}" consolidada com sucesso!'
             )
         else:
             messages.error(
-                request, 
+                request,
                 'Erro ao consolidar transação. Ela pode já ter sido criada.'
             )
-    
+
     return redirect('dashboard:home')

@@ -8,7 +8,10 @@ class TransacaoForm(forms.ModelForm):
         fields = ['descricao', 'valor', 'tipo',
                   'data', 'categoria', 'conta_bancaria']
         widgets = {
-            'data': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'data': forms.DateInput(
+                attrs={'type': 'date', 'class': 'form-control'},
+                format='%Y-%m-%d'
+            ),
             'descricao': forms.TextInput(attrs={'class': 'form-control'}),
             'valor': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'tipo': forms.Select(attrs={'class': 'form-select'}),
@@ -22,6 +25,9 @@ class TransacaoForm(forms.ModelForm):
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
+        # Configurar o formato de entrada para o campo data
+        self.fields['data'].input_formats = ['%Y-%m-%d']
+
         if user:
             self.fields['categoria'].queryset = Categoria.objects.filter(
                 usuario=user, ativa=True

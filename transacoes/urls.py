@@ -16,6 +16,8 @@ urlpatterns = [
 
     # Importação OFX
     path('importar-ofx/', views.importar_ofx, name='importar_ofx'),
+    path('confirmar-importacao-ofx/', views.confirmar_importacao_ofx,
+         name='confirmar_importacao_ofx'),
 
     # Transações Recorrentes
     path('recorrentes/', views.lista_transacoes_recorrentes,

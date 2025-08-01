@@ -1,0 +1,297 @@
+{% extends 'base.html' %}
+
+{% block title %}Confirmar Importação OFX - Sistema de Finanças{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4><i class="bi bi-eye"></i> Confirmar Importação OFX</h4>
+                <div>
+                    <span class="badge bg-info fs-6">{{ total_transacoes }} transações</span>
+                    {% if conta %}
+                        <span class="badge bg-secondary fs-6">{{ conta.nome }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>Arquivo:</strong> {{ arquivo_nome }}<br>
+                    <strong>Transações encontradas:</strong> {{ total_transacoes }}<br>
+                    <strong>Processamento IA:</strong> 
+                    {% if chatgpt_enabled %}
+                        <span class="text-success"><i class="bi bi-robot"></i> ChatGPT ativo</span>
+                    {% else %}
+                        <span class="text-warning"><i class="bi bi-gear"></i> Regras locais</span>
+                    {% endif %}
+                    <br>
+                    As transações abaixo foram processadas e categorizadas automaticamente. 
+                    Revise as categorias antes de confirmar a importação.
+                </div>
+
+                <!-- Controles de filtro -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="text" id="filtro-busca" class="form-control" 
+                                   placeholder="Buscar por descrição...">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select id="filtro-tipo" class="form-select">
+                            <option value="">Todos os tipos</option>
+                            <option value="RECEITA">Receitas</option>
+                            <option value="DESPESA">Despesas</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select id="filtro-categoria" class="form-select">
+                            <option value="">Todas as categorias</option>
+                            {% for categoria in categorias %}
+                                <option value="{{ categoria.id }}">{{ categoria.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Lista de transações para confirmação -->
+                <div class="table-responsive">
+                    <table class="table table-hover" id="tabela-transacoes">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Data</th>
+                                <th>Descrição</th>
+                                <th>Valor</th>
+                                <th>Tipo</th>
+                                <th>Categoria</th>
+                                <th>Status IA</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transacao in transacoes %}
+                                <tr data-tipo="{{ transacao.tipo }}" 
+                                    data-categoria="{{ transacao.categoria_id }}"
+                                    data-descricao="{{ transacao.descricao|lower }}">
+                                    <td>
+                                        <small>{{ transacao.data|date:"d/m/Y" }}</small>
+                                    </td>
+                                    <td>
+                                        <strong>{{ transacao.descricao|truncatechars:50 }}</strong>
+                                        {% if transacao.descricao|length > 50 %}
+                                            <i class="bi bi-three-dots" 
+                                               title="{{ transacao.descricao }}"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold {% if transacao.tipo == 'RECEITA' %}text-success{% else %}text-danger{% endif %}">
+                                            {% if transacao.tipo == 'RECEITA' %}+{% else %}-{% endif %}
+                                            R$ {{ transacao.valor|floatformat:2 }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if transacao.tipo == 'RECEITA' %}
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-arrow-up"></i> Receita
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger">
+                                                <i class="bi bi-arrow-down"></i> Despesa
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge rounded-pill" 
+                                              style="background-color: {{ transacao.categoria_cor }}; color: white;">
+                                            {{ transacao.categoria_nome }}
+                                        </span>
+                                        <br>
+                                        <small class="text-muted">
+                                            <select class="form-select form-select-sm mt-1 categoria-select" 
+                                                    data-transacao-index="{{ forloop.counter0 }}">
+                                                {% for categoria in categorias %}
+                                                    {% if categoria.tipo == transacao.tipo %}
+                                                        <option value="{{ categoria.id }}" 
+                                                                data-cor="{{ categoria.cor }}"
+                                                                {% if categoria.id == transacao.categoria_id %}selected{% endif %}>
+                                                            {{ categoria.nome }}
+                                                        </option>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </select>
+                                        </small>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if transacao.melhorada_chatgpt %}
+                                            <i class="bi bi-robot text-success" 
+                                               title="Categoria sugerida por ChatGPT{% if transacao.confianca_ia %} ({{ transacao.confianca_ia|floatformat:0 }}% confiança){% endif %}"></i>
+                                        {% else %}
+                                            <i class="bi bi-gear text-muted" 
+                                               title="Categoria padrão (regras locais)"></i>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        Nenhuma transação encontrada para importar.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Resumo e ações -->
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title">Resumo da Importação</h6>
+                                <div class="row text-center">
+                                    <div class="col-4">
+                                        <div class="text-success">
+                                            <i class="bi bi-arrow-up fs-4"></i>
+                                            <div class="fw-bold" id="total-receitas">R$ 0,00</div>
+                                            <small>Receitas</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="text-danger">
+                                            <i class="bi bi-arrow-down fs-4"></i>
+                                            <div class="fw-bold" id="total-despesas">R$ 0,00</div>
+                                            <small>Despesas</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="text-info">
+                                            <i class="bi bi-calculator fs-4"></i>
+                                            <div class="fw-bold" id="saldo-liquido">R$ 0,00</div>
+                                            <small>Saldo</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 d-flex align-items-center justify-content-end">
+                        <form method="post" class="d-inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="confirmar" value="nao">
+                            <button type="submit" class="btn btn-secondary me-2">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </button>
+                        </form>
+                        <form method="post" class="d-inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="confirmar" value="sim">
+                            <button type="submit" class="btn btn-primary" id="btn-confirmar">
+                                <i class="bi bi-check-circle"></i> Confirmar Importação
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const transacoesData = [
+        {% for transacao in transacoes %}
+        {
+            tipo: "{{ transacao.tipo }}",
+            valor: {{ transacao.valor }},
+            descricao: "{{ transacao.descricao|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    // Função para calcular e atualizar resumo
+    function atualizarResumo() {
+        const linhasVisiveis = document.querySelectorAll('#tabela-transacoes tbody tr:not([style*="display: none"])');
+        let totalReceitas = 0;
+        let totalDespesas = 0;
+        
+        linhasVisiveis.forEach((linha, index) => {
+            const tipo = linha.dataset.tipo;
+            if (transacoesData[index]) {
+                const valor = transacoesData[index].valor;
+                
+                if (tipo === 'RECEITA') {
+                    totalReceitas += valor;
+                } else {
+                    totalDespesas += valor;
+                }
+            }
+        });
+        
+        const saldoLiquido = totalReceitas - totalDespesas;
+        
+        document.getElementById('total-receitas').textContent = 'R$ ' + totalReceitas.toFixed(2).replace('.', ',');
+        document.getElementById('total-despesas').textContent = 'R$ ' + totalDespesas.toFixed(2).replace('.', ',');
+        document.getElementById('saldo-liquido').textContent = 'R$ ' + saldoLiquido.toFixed(2).replace('.', ',');
+        
+        // Cor do saldo
+        const saldoElement = document.getElementById('saldo-liquido');
+        saldoElement.className = 'fw-bold ' + (saldoLiquido >= 0 ? 'text-success' : 'text-danger');
+    }
+    
+    // Filtros
+    const filtroBusca = document.getElementById('filtro-busca');
+    const filtroTipo = document.getElementById('filtro-tipo');
+    const filtroCategoria = document.getElementById('filtro-categoria');
+    
+    function aplicarFiltros() {
+        const busca = filtroBusca.value.toLowerCase();
+        const tipo = filtroTipo.value;
+        const categoria = filtroCategoria.value;
+        
+        const linhas = document.querySelectorAll('#tabela-transacoes tbody tr');
+        
+        linhas.forEach(linha => {
+            const descricao = linha.dataset.descricao || '';
+            const tipoLinha = linha.dataset.tipo;
+            const categoriaLinha = linha.dataset.categoria;
+            
+            const matchBusca = !busca || descricao.includes(busca);
+            const matchTipo = !tipo || tipoLinha === tipo;
+            const matchCategoria = !categoria || categoriaLinha === categoria;
+            
+            if (matchBusca && matchTipo && matchCategoria) {
+                linha.style.display = '';
+            } else {
+                linha.style.display = 'none';
+            }
+        });
+        
+        atualizarResumo();
+    }
+    
+    filtroBusca.addEventListener('input', aplicarFiltros);
+    filtroTipo.addEventListener('change', aplicarFiltros);
+    filtroCategoria.addEventListener('change', aplicarFiltros);
+    
+    // Mudança de categoria
+    document.querySelectorAll('.categoria-select').forEach(select => {
+        select.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const cor = selectedOption.dataset.cor;
+            const nome = selectedOption.textContent;
+            
+            const badge = this.closest('td').querySelector('.badge');
+            badge.style.backgroundColor = cor;
+            badge.textContent = nome;
+        });
+    });
+    
+    // Inicializa resumo
+    atualizarResumo();
+});
+</script>
+{% endblock %}
